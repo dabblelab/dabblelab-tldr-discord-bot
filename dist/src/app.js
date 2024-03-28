@@ -14,14 +14,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const dotenv_1 = __importDefault(require("dotenv"));
-const textToSpeech_1 = __importDefault(require("../services/textToSpeech"));
+const textToSpeech_1 = __importDefault(require("./services/textToSpeech"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const port = 3001;
-app.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const text = 'Hello, world!';
+app.get("/", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const text = "Hello, world!";
     yield (0, textToSpeech_1.default)(text);
-    res.send('Done');
+    res.send("Done");
+}));
+app.post("/", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    return handleAIChat(req, res);
 }));
 app.listen(port, () => {
     return console.log(`Express is listening at http://localhost:${port}`);
