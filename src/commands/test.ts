@@ -5,8 +5,8 @@ import { creteSummaryEmbed } from "../utils/embed";
 env.config();
 
 export const data = new SlashCommandBuilder()
-  .setName("demo")
-  .setDescription("For demo purpose only.");
+  .setName("test")
+  .setDescription("For testing purpose only.");
 
 export async function execute(interaction: CommandInteraction) {
   try {

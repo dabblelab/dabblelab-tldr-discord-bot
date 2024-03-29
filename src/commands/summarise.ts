@@ -5,8 +5,8 @@ import { creteSummaryEmbed } from "../utils/embed";
 env.config();
 
 export const data = new SlashCommandBuilder()
-  .setName("demo")
-  .setDescription("For demo purpose only.");
+  .setName("summarise")
+  .setDescription("Get the summary of your unread messages.");
 
 export async function execute(interaction: CommandInteraction) {
   try {
