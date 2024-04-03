@@ -5,6 +5,7 @@ import {
   Message,
   SlashCommandBuilder,
 } from "discord.js";
+import { getAIResponse } from "../services/getAIResponse";
 
 env.config();
 
@@ -14,6 +15,7 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: CommandInteraction) {
   try {
+    await interaction.deferReply();
     const messages: Collection<string, Message> =
       await interaction.channel.messages.fetch({
         limit: 50,
@@ -36,7 +38,9 @@ export async function execute(interaction: CommandInteraction) {
     });
     chatHistory += "</chat_history>";
 
-    return interaction.reply(chatHistory);
+    const response = await getAIResponse(chatHistory);
+
+    return interaction.editReply(response);
   } catch (err) {
     console.error(err);
     return interaction.reply("Error processing request." + err.message || err);
