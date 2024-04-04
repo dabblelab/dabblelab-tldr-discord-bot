@@ -13,11 +13,15 @@ import { OpenAIFunctionsAgentOutputParser } from "langchain/agents/openai/output
 import { CommandInteraction, EmbedBuilder } from "discord.js";
 import { getAudioUrlFromText } from "./getAudioUrlFromText";
 
-const SYSTEM_PROMPT = `You're an assistant dedicated to helping users get a summary of a chat conversation along with summary audio. The user will enter a list of chats between two or more users. Your task is to return a summary using the provided function "generate_summary" such that a user can understand quickly what happened in the chat. The summary should be concise and capture the essence of the conversation. Use generate_summary function to generate the summary and get the summary audio URL. THE FINAL SUMMARY MUST NEVER EXCEED 4000 CHARACTERS.`;
+const SYSTEM_PROMPT = `You're an assistant dedicated to helping users get a summary of a chat conversation in the form of anumbered list. The user will enter a list of chats between two or more users. Your task is to return a summary using the provided function "generate_summary" such that a user can understand quickly what happened in the chat. The summary should be concise and capture the essence of the conversation. Use generate_summary function to generate the summary. THE FINAL SUMMARY MUST NEVER EXCEED 4000 CHARACTERS.`;
 // const SYSTEM_PROMPT = `You're an assistant dedicated to helping users get a summary of a chat conversation. The user will enter a list of chats between two or more users. Your task is to return a summary using the provided function "generate_summary" such that a user can understand quickly what happened in the chat. The summary should be concise and capture the essence of the conversation. In addition to the summary, at the end, you should also include a list with title TLDR; consisting of important takeaways as bullet points. Use generate_ssummary function to generate the summary. `;
 
 const generateSummary = z.object({
-  summary: z.string().describe("Summary of the chat."),
+  summary: z
+    .string()
+    .describe(
+      "Summary of the chat. In numbered list format. Must not exceed 4000 characters.",
+    ),
 });
 
 function validateSummaryJSON(summaryJSON: Record<string, string>) {
@@ -52,7 +56,7 @@ export async function getAIResponse(discordContext: DiscordContext) {
       new DynamicStructuredTool({
         name: "generate_summary",
         description:
-          "Generates summary of the chat conversation based on the input.",
+          "Generates numbered list summary of the chat conversation based on the input.",
         schema: generateSummary,
         func: async (input) => {
           try {
