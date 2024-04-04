@@ -40,7 +40,10 @@ export async function execute(interaction: CommandInteraction) {
 
     const response = await getAIResponse(chatHistory);
 
-    return interaction.editReply(response);
+    await interaction.user.send(response); // reply in the DM
+    return interaction.editReply("I have sent you the response in DM."); // informing that the DM has been sent
+
+    // return interaction.editReply(response); // reply in the chat itself
   } catch (err) {
     console.error(err);
     return interaction.reply("Error processing request." + err.message || err);
