@@ -1,4 +1,3 @@
-import env from "dotenv";
 import {
   Collection,
   CommandInteraction,
@@ -7,11 +6,11 @@ import {
 } from "discord.js";
 import { getAIResponse } from "../services/getAIResponseV2";
 
-env.config();
-
 export const data = new SlashCommandBuilder()
-  .setName("test")
-  .setDescription("For testing purpose only.")
+  .setName("tldr")
+  .setDescription(
+    "Generates a summary of the chat conversation in both text as well as audio format.",
+  )
   .addIntegerOption((option) =>
     option
       .setName("message_count")

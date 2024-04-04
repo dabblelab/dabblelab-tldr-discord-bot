@@ -1,51 +1,32 @@
-// // Require the necessary discord.js classes
-// import fs from "fs";
-// import path from "path";
+import { Client } from "discord.js";
+import { commands } from "../commands";
+import { deployCommands } from "../utils/deploy-commands";
+import { config } from "../utils/config";
 
-// import { Client, Events, GatewayIntentBits, Collection } from "discord.js";
+export async function initializeDiscordBot() {
+  const client = new Client({
+    intents: ["Guilds", "GuildMessages", "DirectMessages"],
+  });
 
-// import env from "dotenv";
+  client.once("ready", () => {
+    console.log("Discord bot is ready! 🤖");
+  });
 
-// env.config();
+  client.on("guildCreate", async (guild) => {
+    console.log(`Joined a new guild: ${guild.name}`);
+    await deployCommands({ guildId: guild.id });
+  });
 
-// const token = process.env.DISCORD_TOKEN;
+  client.on("interactionCreate", async (interaction) => {
+    if (!interaction.isCommand()) {
+      console.log("Not a command interaction");
+      return;
+    }
+    const { commandName } = interaction;
+    if (commands[commandName as keyof typeof commands]) {
+      commands[commandName as keyof typeof commands].execute(interaction);
+    }
+  });
 
-// // Create a new client instance
-// const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-
-// // When the client is ready, run this code (only once).
-// // The distinction between `client: Client<boolean>` and `readyClient: Client<true>` is important for TypeScript developers.
-// // It makes some properties non-nullable.
-// client.once(Events.ClientReady, (readyClient) => {
-//   console.log(`Ready! Logged in as ${readyClient.user.tag}`);
-// });
-
-// // Log in to Discord with your client's token
-// client.login(token);
-
-// client.commands = new Collection();
-
-// const foldersPath = path.join(__dirname, "commands");
-// const commandFolders = fs.readdirSync(foldersPath);
-
-// for (const folder of commandFolders) {
-//   const commandsPath = path.join(foldersPath, folder);
-//   const commandFiles = fs
-//     .readdirSync(commandsPath)
-//     .filter((file) => file.endsWith(".js"));
-//   for (const file of commandFiles) {
-//     const filePath = path.join(commandsPath, file);
-//     // const command = require(filePath);
-//       import command from filePath;
-//     // Set a new item in the Collection with the key as the command name and the value as the exported module
-//     if ("data" in command && "execute" in command) {
-//       client.commands.set(command.data.name, command);
-//     } else {
-//       console.log(
-//         `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`
-//       );
-//     }
-//   }
-// }
-
-// console.log("Hello, world!");
+  client.login(config.DISCORD_TOKEN);
+}

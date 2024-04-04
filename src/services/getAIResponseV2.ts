@@ -10,12 +10,11 @@ import { AgentExecutor } from "langchain/agents";
 import { z } from "zod";
 import { formatToOpenAIFunctionMessages } from "langchain/agents/format_scratchpad";
 import { OpenAIFunctionsAgentOutputParser } from "langchain/agents/openai/output_parser";
+import { CommandInteraction, EmbedBuilder } from "discord.js";
+import { getAudioUrlFromText } from "./getAudioUrlFromText";
 
-import getTextToSpeech from "./textToSpeech";
-import { uploadFileToSupabase } from "./fileUpload";
-
-const SYSTEM_PROMPT = `You're an assistant dedicated to helping users get a summary of a chat conversation along with summary audio. The user will enter a list of chats between two or more users. Your task is to return a summary using the provided function "generate_ssummary" such that a user can understand quickly what happened in the chat. The summary should be concise and capture the essence of the conversation.Use generate_ssummary function to generate the summary and get the summary audio URL. THE FINAL SUMMARY MUST NEVER EXCEED 4000 CHARACTERS.`;
-// const SYSTEM_PROMPT = `You're an assistant dedicated to helping users get a summary of a chat conversation. The user will enter a list of chats between two or more users. Your task is to return a summary using the provided function "generate_ssummary" such that a user can understand quickly what happened in the chat. The summary should be concise and capture the essence of the conversation. In addition to the summary, at the end, you should also include a list with title TLDR; consisting of important takeaways as bullet points. Use generate_ssummary function to generate the summary. `;
+const SYSTEM_PROMPT = `You're an assistant dedicated to helping users get a summary of a chat conversation along with summary audio. The user will enter a list of chats between two or more users. Your task is to return a summary using the provided function "generate_summary" such that a user can understand quickly what happened in the chat. The summary should be concise and capture the essence of the conversation. Use generate_summary function to generate the summary and get the summary audio URL. THE FINAL SUMMARY MUST NEVER EXCEED 4000 CHARACTERS.`;
+// const SYSTEM_PROMPT = `You're an assistant dedicated to helping users get a summary of a chat conversation. The user will enter a list of chats between two or more users. Your task is to return a summary using the provided function "generate_summary" such that a user can understand quickly what happened in the chat. The summary should be concise and capture the essence of the conversation. In addition to the summary, at the end, you should also include a list with title TLDR; consisting of important takeaways as bullet points. Use generate_ssummary function to generate the summary. `;
 
 const generateSummary = z.object({
   summary: z.string().describe("Summary of the chat."),
@@ -33,7 +32,16 @@ function validateSummaryJSON(summaryJSON: Record<string, string>) {
   return true;
 }
 
-export async function getAIResponse(input: string) {
+interface DiscordContext {
+  interaction: CommandInteraction;
+  messageLimit: number;
+  chatHistory: string;
+  channelName: string;
+  date: string;
+  linkToUserMessage: string;
+}
+
+export async function getAIResponse(discordContext: DiscordContext) {
   try {
     const model = new ChatOpenAI({
       modelName: "gpt-4",
@@ -58,28 +66,37 @@ export async function getAIResponse(input: string) {
 
             console.log(summary);
 
+            await discordContext.interaction.editReply({
+              embeds: [
+                new EmbedBuilder()
+                  .setColor(0x0099ff)
+                  .setTitle(
+                    `Summary of last ${discordContext.messageLimit} messages:`,
+                  )
+                  .setDescription(summary)
+                  .setTimestamp()
+                  .setFooter({
+                    text: `The audio version of this summary is being generated and will be sent soon. Please wait.`,
+                  }),
+              ],
+            });
+
             try {
               // generate audio file from the summary text
-              const audioFileBuffer = await getTextToSpeech(summary);
-              if (!audioFileBuffer)
-                throw new Error("Could not generate audio file");
-
-              // store the file to supabase
-              const timestamp = new Date().getTime();
-
-              const { path } = await uploadFileToSupabase({
-                fileName: `summary_${timestamp}.mp3`,
-                fileBuffer: audioFileBuffer,
+              const audioURL = await getAudioUrlFromText(`${summary}`);
+              await discordContext.interaction.followUp({
+                content: `Here is the audio version of this summary!`,
+                files: [
+                  {
+                    attachment: audioURL,
+                    name: "chat_summary.mp3",
+                  },
+                ],
+                ephemeral: true,
               });
 
-              if (!path) throw new Error("Could not upload file to supabase");
-
-              const fileURL = `${process.env.SUPABASE_BUCKET_FOLDER_LOCATION}/${path}`;
-
-              console.log(fileURL);
-
               return `${summary}
-                You can listen to the summary [here](${fileURL}).
+                You can listen to the summary [here](${audioURL}).
               `;
             } catch (e) {
               console.log((e as Error).message || e);
@@ -126,7 +143,7 @@ export async function getAIResponse(input: string) {
     });
 
     const result = await executorWithMemory.invoke({
-      input: input,
+      input: discordContext.chatHistory,
       chat_history: [],
     });
 
