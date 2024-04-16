@@ -5,7 +5,7 @@ import {
   Message,
   SlashCommandBuilder,
 } from "discord.js";
-import { getAIResponse } from "../services/getAIResponseV2";
+import { getAIResponse } from "../services/getAIResponseV3";
 
 env.config();
 

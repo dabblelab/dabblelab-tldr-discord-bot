@@ -4,7 +4,7 @@ import {
   Message,
   SlashCommandBuilder,
 } from "discord.js";
-import { getAIResponse } from "../services/getAIResponseV2";
+import { getAIResponse } from "../services/getAIResponseV3";
 
 export const data = new SlashCommandBuilder()
   .setName("tldr")
@@ -51,7 +51,7 @@ export async function execute(interaction: CommandInteraction) {
     const date = new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");
     const linkToUserMessage = `https://discord.com/channels/${interaction.guildId}/${interaction.channelId}/${interaction.id}`;
 
-    const response = await getAIResponse({
+    return await getAIResponse({
       interaction,
       messageLimit: messageLimit as number,
       chatHistory,
@@ -59,7 +59,7 @@ export async function execute(interaction: CommandInteraction) {
       date,
       linkToUserMessage,
     });
-    console.log("response", response);
+    // console.log("response", response);
   } catch (err) {
     console.error(err);
     return interaction.reply("Error processing request." + err.message || err);
