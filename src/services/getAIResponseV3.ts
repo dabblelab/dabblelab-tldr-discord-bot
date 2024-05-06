@@ -2,6 +2,7 @@ import { PromptTemplate } from "@langchain/core/prompts";
 import { ChatOpenAI } from "@langchain/openai";
 import { CommandInteraction, EmbedBuilder } from "discord.js";
 import { getAudioUrlFromText } from "./getAudioUrlFromText";
+import { createEpisode } from "../lib/podcast";
 
 interface DiscordContext {
   interaction: CommandInteraction;
@@ -27,6 +28,7 @@ export async function getAIResponse(discordContext: DiscordContext) {
       </chat_history>`,
     );
 
+    // @ts-ignore
     const chain = promptTemplate.pipe(model);
 
     try {
@@ -34,17 +36,15 @@ export async function getAIResponse(discordContext: DiscordContext) {
         input: discordContext.chatHistory,
       });
 
-      const summary = result.content;
-
-      // console.log(summary);
+      const summary = result.toString();
+      console.log({ summary });
+      const title = `Summary of last ${discordContext.messageLimit} messages:`;
 
       await discordContext.interaction.editReply({
         embeds: [
           new EmbedBuilder()
             .setColor(0x0099ff)
-            .setTitle(
-              `Summary of last ${discordContext.messageLimit} messages:`,
-            )
+            .setTitle(title as string)
             .setDescription(summary as string)
             .setTimestamp()
             .setFooter({
@@ -56,6 +56,14 @@ export async function getAIResponse(discordContext: DiscordContext) {
       try {
         // generate audio file from the summary text
         const audioURL = await getAudioUrlFromText(`${summary}`);
+        // Update Podcast Episode
+        await createEpisode(
+          discordContext.interaction,
+          title,
+          summary as string,
+          audioURL,
+        );
+
         await discordContext.interaction.followUp({
           content: `Here is the audio version of this summary!`,
           files: [

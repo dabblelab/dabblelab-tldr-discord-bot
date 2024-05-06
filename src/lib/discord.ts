@@ -2,6 +2,8 @@ import { Client } from "discord.js";
 import { commands } from "../commands";
 import { deployCommands } from "../utils/deploy-commands";
 import { config } from "../utils/config";
+import { CronJob } from "cron";
+import { publishPodcasts } from "./publisher";
 
 export async function initializeDiscordBot() {
   const client = new Client({
@@ -22,11 +24,22 @@ export async function initializeDiscordBot() {
       console.log("Not a command interaction");
       return;
     }
+
     const { commandName } = interaction;
     if (commands[commandName as keyof typeof commands]) {
       commands[commandName as keyof typeof commands].execute(interaction);
     }
   });
+
+  // Set Cron Job
+  const publishPodcastWithClient = publishPodcasts.bind(null, client);
+  const dailyMidnight = "0 0 * * *";
+  // const repeatTest = "0 */1 * * * *";
+  const scheduledMessageWednesday = new CronJob(
+    dailyMidnight,
+    publishPodcastWithClient,
+  );
+  scheduledMessageWednesday.start();
 
   client.login(config.DISCORD_TOKEN);
 }

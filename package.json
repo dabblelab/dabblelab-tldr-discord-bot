@@ -7,7 +7,7 @@
     "build": "tsc",
     "start": "tsc && node dist/index.js",
     "start-bg": "nohup tsc && node dist/index.js &",
-    "postinstall": "sh postinstall.sh",
+    "_postinstall": "sh postinstall.sh",
     "lint": "eslint . --ext .ts",
     "dev": "eslint --fix --ext .ts ./src/index.ts && nodemon",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -16,33 +16,28 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@langchain/community": "^0.0.37",
-    "@langchain/core": "0.1.45",
-    "@langchain/openai": "^0.0.19",
+    "@langchain/community": "^0.0.54",
+    "@langchain/core": "^0.1.61",
+    "@langchain/openai": "^0.0.28",
+    "@prisma/client": "^5.13.0",
     "@supabase/supabase-js": "^2.41.1",
+    "cron": "^3.1.7",
     "discord.js": "^14.14.1",
     "dotenv": "^16.4.5",
-    "langchain": "^0.1.27",
+    "langchain": "^0.1.36",
     "nodemon": "^3.1.0",
     "openai": "^4.29.2",
+    "podcast": "^2.0.1",
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/node": "^20.12.8",
     "@typescript-eslint/eslint-plugin": "^7.4.0",
     "@typescript-eslint/parser": "^7.4.0",
+    "commander": "^12.0.0",
     "eslint": "^8.57.0",
     "prettier": "3.0.0",
-    "typescript": "^5.4.3"
-  },
-  "resolutions": {
-    "@langchain/core": "0.1.45"
-  },
-  "overrides": {
-    "@langchain/core": "0.1.45"
-  },
-  "pnpm": {
-    "overrides": {
-      "@langchain/core": "0.1.45"
-    }
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
   }
 }

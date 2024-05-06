@@ -18,7 +18,7 @@ export async function deployCommands({ guildId }: DeployCommandsProps) {
       Routes.applicationGuildCommands(config.DISCORD_CLIENT_ID, guildId),
       {
         body: commandsData,
-      }
+      },
     );
 
     console.log("Successfully reloaded application (/) commands.");

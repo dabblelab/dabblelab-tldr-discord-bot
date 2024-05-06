@@ -5,6 +5,7 @@ import {
   SlashCommandBuilder,
 } from "discord.js";
 import { getAIResponse } from "../services/getAIResponseV3";
+import { syncPodcastOptions } from "../lib/podcast";
 
 export const data = new SlashCommandBuilder()
   .setName("tldr")
@@ -50,6 +51,12 @@ export async function execute(interaction: CommandInteraction) {
     const channelName = interaction.channel.name;
     const date = new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");
     const linkToUserMessage = `https://discord.com/channels/${interaction.guildId}/${interaction.channelId}/${interaction.id}`;
+
+    try {
+      await syncPodcastOptions(interaction);
+    } catch (err) {
+      console.error(err);
+    }
 
     return await getAIResponse({
       interaction,
