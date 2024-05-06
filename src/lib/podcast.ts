@@ -206,3 +206,17 @@ export async function updatePodcastXml(interaction: CommandInteraction) {
 
   return podcast;
 }
+
+export async function getSubscribedChannels() {
+  try {
+    const channels = await prisma.license.findMany({
+      select: {
+        channelId: true,
+      },
+    });
+    return channels;
+  } catch (error) {
+    console.log("Unable to fetch channels.", error?.message);
+    return [];
+  }
+}

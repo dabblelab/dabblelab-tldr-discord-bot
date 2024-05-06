@@ -7,7 +7,7 @@
     "build": "tsc",
     "start": "tsc && node dist/index.js",
     "start-bg": "nohup tsc && node dist/index.js &",
-    "postinstall": "sh postinstall.sh",
+    "_postinstall": "sh postinstall.sh",
     "lint": "eslint . --ext .ts",
     "dev": "eslint --fix --ext .ts ./src/index.ts && nodemon",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -39,16 +39,5 @@
     "prettier": "3.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
-  },
-  "resolutions": {
-    "@langchain/core": "0.1.45"
-  },
-  "overrides": {
-    "@langchain/core": "0.1.45"
-  },
-  "pnpm": {
-    "overrides": {
-      "@langchain/core": "0.1.45"
-    }
   }
 }

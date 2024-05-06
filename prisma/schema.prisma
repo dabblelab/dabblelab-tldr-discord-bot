@@ -1,10 +1,10 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-}
-
-generator client {
-  provider = "prisma-client-js"
 }
 
 model Podcast {
@@ -14,7 +14,6 @@ model Podcast {
   channel     String
   channelId   String    @unique
   guildId     String
-  licenseId   Int
   title       String?
   description String?
   siteUrl     String?
@@ -22,8 +21,9 @@ model Podcast {
   imageUrl    String?
   author      String?
   published   Boolean   @default(false)
+  licenseId   Int
   episodes    Episode[]
-  license     License  
+  license     License   @relation(fields: [licenseId], references: [id])
 }
 
 model Episode {
