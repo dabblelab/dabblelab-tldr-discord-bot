@@ -22,6 +22,7 @@ export async function initializeDiscordBot() {
       console.log("Not a command interaction");
       return;
     }
+
     const { commandName } = interaction;
     if (commands[commandName as keyof typeof commands]) {
       commands[commandName as keyof typeof commands].execute(interaction);
