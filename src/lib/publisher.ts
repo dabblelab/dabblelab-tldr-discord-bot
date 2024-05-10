@@ -1,4 +1,9 @@
-import type { Client, TextChannel, Message, Collection } from "discord.js";
+import type {
+  Client,
+  TextChannel,
+  Message,
+  FetchMessagesOptions,
+} from "discord.js";
 import { getSubscribedChannels } from "./podcast";
 import { PromptTemplate } from "@langchain/core/prompts";
 import { ChatOpenAI } from "@langchain/openai";
@@ -6,6 +11,9 @@ import { prisma } from "./db";
 import { Podcast } from "podcast";
 import { uploadXmlFile, uploadAudio } from "./supabase";
 import getTextToSpeech from "../services/textToSpeech";
+
+const MESSAGE_LIMIT = 100;
+const MAX_MESSAGE_LIMIT = 500;
 
 interface DiscordContext {
   messageLimit: number;
@@ -19,10 +27,11 @@ interface DiscordContext {
 export async function publishPodcasts(client: Client) {
   const currentTime = new Date().toLocaleString();
   console.log("\nPublishing podcasts...", currentTime);
-  const messageLimit: number = 50;
+  const messageLimit: number = MESSAGE_LIMIT;
 
   const channelIterator = {
     channels: (await getSubscribedChannels()) || [],
+    // channels: [{ channelId: "1230843619351466056" }],
     *[Symbol.asyncIterator]() {
       for (const channel of this.channels) {
         yield channel?.channelId;
@@ -48,14 +57,16 @@ export async function publishPodcasts(client: Client) {
         continue;
       }
 
-      const messages: Collection<string, Message> =
-        await channel.messages.fetch({
-          limit: messageLimit,
-        });
-
+      const messages: Map<string, Message> = await fetchMessagesForChannel(
+        channel,
+        channelPodcast?.lastMessageId || null,
+      );
       console.log("Channel", channel.name, "has", messages.size, "messages");
 
-      messages.reverse();
+      if (messages.size === 0) {
+        console.log("No new messages to publish");
+        continue;
+      }
 
       let chatHistory = "<chat_history>\n";
       messages.forEach((message) => {
@@ -89,8 +100,62 @@ export async function publishPodcasts(client: Client) {
 
       console.log("Podcast published for channel", channel.name);
       console.log("\n");
+    } else {
+      console.log("Channel not found in cache", channelId);
     }
   }
+}
+
+async function fetchMessagesForChannel(
+  channel: TextChannel,
+  prevDiscussionId: string | null,
+): Promise<Map<string, Message>> {
+  const allMessages: Map<string, Message> = new Map();
+  let hasMore = true;
+  let lastMessageId = null;
+
+  while (hasMore && allMessages.size < MAX_MESSAGE_LIMIT) {
+    console.log(`Fetching ${MESSAGE_LIMIT} messages`);
+    const messageOptions: FetchMessagesOptions = { limit: MESSAGE_LIMIT };
+    if (lastMessageId) {
+      messageOptions.before = lastMessageId;
+    }
+    if (prevDiscussionId) {
+      messageOptions.after = prevDiscussionId;
+    }
+    const messages = await channel.messages.fetch(messageOptions);
+    messages.forEach((message) => {
+      // console.log(message.id, message.content);
+      allMessages.set(message.id, message);
+    });
+
+    console.log("Received", messages.size, "messages. Total", allMessages.size);
+
+    // const messageKeys = Array.from(messages.keys());
+    lastMessageId = messages.last()?.id;
+
+    hasMore = messages.size === MESSAGE_LIMIT;
+  }
+
+  if (!allMessages.size) {
+    return new Map();
+  }
+
+  // Save the first message ID after fetching
+  const [firstMessageId] = allMessages.keys();
+  await storeLastMessageId(channel.id, firstMessageId);
+
+  // Return the messages in reverse order
+  const reverseMessages = new Map(Array.from(allMessages.entries()).reverse());
+  return reverseMessages;
+}
+
+async function storeLastMessageId(channelId: string, lastMessageId: string) {
+  console.log("Storing last message id", lastMessageId);
+  await prisma.podcast.update({
+    where: { channelId },
+    data: { lastMessageId },
+  });
 }
 
 export async function getAIResponse(discordContext: DiscordContext) {

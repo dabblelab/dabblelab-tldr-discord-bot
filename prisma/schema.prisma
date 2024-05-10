@@ -8,22 +8,23 @@ datasource db {
 }
 
 model Podcast {
-  id          Int       @id @default(autoincrement())
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  channel     String
-  channelId   String    @unique
-  guildId     String
-  title       String?
-  description String?
-  siteUrl     String?
-  feedUrl     String?
-  imageUrl    String?
-  author      String?
-  published   Boolean   @default(false)
-  licenseId   Int
-  episodes    Episode[]
-  license     License   @relation(fields: [licenseId], references: [id])
+  id            Int       @id @default(autoincrement())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  channel       String
+  channelId     String    @unique
+  guildId       String
+  title         String?
+  description   String?
+  siteUrl       String?
+  feedUrl       String?
+  imageUrl      String?
+  author        String?
+  lastMessageId String?
+  published     Boolean   @default(false)
+  licenseId     Int
+  episodes      Episode[]
+  license       License   @relation(fields: [licenseId], references: [id])
 }
 
 model Episode {
