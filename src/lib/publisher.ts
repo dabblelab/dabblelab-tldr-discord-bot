@@ -182,7 +182,7 @@ async function getAudioUrlFromText(text: string = "", filePath: string = "") {
 
 async function updatePodcastXml(channelId: string, guildId: string) {
   console.log("Updating podcast XML for channel", channelId);
-  const channelPath = `${guildId} /${channelId}`;
+  const channelPath = `${guildId}/${channelId}`;
   const podcast = await prisma.podcast.findFirst({
     where: { channelId: channelId },
     include: { episodes: true },
