@@ -24,14 +24,20 @@ interface DiscordContext {
   guildId: string;
 }
 
-export async function publishPodcasts(client: Client) {
+export async function publishPodcasts(
+  client: Client,
+  publishChannelId: string | null,
+) {
   const currentTime = new Date().toLocaleString();
   console.log("\nPublishing podcasts...", currentTime);
   const messageLimit: number = MESSAGE_LIMIT;
 
+  const channels = publishChannelId
+    ? [{ channelId: publishChannelId }]
+    : (await getSubscribedChannels()) || [];
+
   const channelIterator = {
-    channels: (await getSubscribedChannels()) || [],
-    // channels: [{ channelId: "1230843619351466056" }],
+    channels: channels,
     *[Symbol.asyncIterator]() {
       for (const channel of this.channels) {
         yield channel?.channelId;

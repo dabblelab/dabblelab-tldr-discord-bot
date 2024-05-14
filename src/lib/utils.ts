@@ -39,3 +39,7 @@ function isJpegOrPng(buffer: Buffer): boolean {
   const pngCheck = buffer.toString("hex", 0, 8) === "89504e470d0a1a0a";
   return jpegCheck || pngCheck;
 }
+
+export function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}

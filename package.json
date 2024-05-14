@@ -7,9 +7,10 @@
     "build": "tsc",
     "start": "tsc && node dist/index.js",
     "start-bg": "nohup tsc && node dist/index.js &",
-    "_postinstall": "sh postinstall.sh",
     "lint": "eslint . --ext .ts",
     "dev": "eslint --fix --ext .ts ./src/index.ts && nodemon",
+    "invite:dev": "ts-node src/bin/invite.ts",
+    "invite:start": "tsc && node dist/bin/invite.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -28,6 +29,7 @@
     "nodemon": "^3.1.0",
     "openai": "^4.29.2",
     "podcast": "^2.0.1",
+    "uuid": "^9.0.1",
     "zod": "^3.22.4"
   },
   "devDependencies": {
