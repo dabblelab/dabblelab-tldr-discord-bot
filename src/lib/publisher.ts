@@ -5,12 +5,11 @@ import type {
   FetchMessagesOptions,
 } from "discord.js";
 import { getSubscribedChannels } from "./podcast";
-import { PromptTemplate } from "@langchain/core/prompts";
-import { ChatOpenAI } from "@langchain/openai";
 import { prisma } from "./db";
 import { Podcast } from "podcast";
 import { uploadXmlFile, uploadAudio } from "./supabase";
 import getTextToSpeech from "../services/textToSpeech";
+import { getChatSummaryOfHistory } from "./langchain";
 
 const MESSAGE_LIMIT = 100;
 const MAX_MESSAGE_LIMIT = 500;
@@ -166,25 +165,7 @@ async function storeLastMessageId(channelId: string, lastMessageId: string) {
 
 export async function getAIResponse(discordContext: DiscordContext) {
   try {
-    const model = new ChatOpenAI({
-      modelName: "gpt-4o",
-      temperature: 0.5,
-    });
-
-    const promptTemplate = PromptTemplate.fromTemplate(
-      `Create a plain text summary of the entire chat conversation with proper punctuations. The user will enter a list of chats between two or more users. Your task is to return a summary such that a user can understand quickly what happened in the chat. The summary should be concise and capture the essence of the conversation. THE FINAL SUMMARY MUST NEVER EXCEED 4000 CHARACTERS.
-      Following is the chat conversation between users:
-      <chat_history>
-        {input}
-      </chat_history>`,
-    );
-    const chain = promptTemplate.pipe(model);
-    console.log("Generating summary");
-    const result = await chain.invoke({
-      input: discordContext.chatHistory,
-    });
-
-    const summary = result.content;
+    const summary = await getChatSummaryOfHistory(discordContext.chatHistory);
     const title = `Summary of last ${discordContext.messageLimit} messages:`;
 
     try {

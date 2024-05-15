@@ -95,7 +95,7 @@ async function createInvite(options: InviteOptions) {
   }
 }
 
-async function deleteInvite(options) {
+async function deleteInvite(options: { channelId: string }) {
   const channelId = options?.channelId;
   if (!channelId) {
     console.error("Channel ID is required to delete invite.");
