@@ -167,12 +167,12 @@ async function storeLastMessageId(channelId: string, lastMessageId: string) {
 export async function getAIResponse(discordContext: DiscordContext) {
   try {
     const model = new ChatOpenAI({
-      modelName: "gpt-4",
+      modelName: "gpt-4o",
       temperature: 0.5,
     });
 
     const promptTemplate = PromptTemplate.fromTemplate(
-      `Create a summary of a chat conversation in the form of a numbered list. The user will enter a list of chats between two or more users. Your task is to return a summary such that a user can understand quickly what happened in the chat. The summary should be concise and capture the essence of the conversation. THE FINAL SUMMARY MUST NEVER EXCEED 4000 CHARACTERS.
+      `Create a plain text summary of the entire chat conversation with proper punctuations. The user will enter a list of chats between two or more users. Your task is to return a summary such that a user can understand quickly what happened in the chat. The summary should be concise and capture the essence of the conversation. THE FINAL SUMMARY MUST NEVER EXCEED 4000 CHARACTERS.
       Following is the chat conversation between users:
       <chat_history>
         {input}

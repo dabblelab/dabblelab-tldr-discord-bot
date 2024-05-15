@@ -3,7 +3,6 @@
 import { Command } from "commander";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { v4 as uuidv4 } from "uuid";
-import path from "node:path";
 import { publishPodcasts } from "../lib/publisher";
 import { uploadImage } from "../lib/supabase";
 import { isValidImage, sleep } from "../lib/utils";
