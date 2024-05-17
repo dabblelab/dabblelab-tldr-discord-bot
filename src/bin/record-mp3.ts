@@ -5,7 +5,7 @@ import OpenAI from "openai";
 
 const openai = new OpenAI();
 
-const speechFile = path.resolve("./speech.mp3");
+const speechFile = path.resolve("./files/welcome.mp3");
 
 async function main() {
   const mp3 = await openai.audio.speech.create({

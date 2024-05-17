@@ -4,7 +4,7 @@
   "description": "",
   "main": "dist/app.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && mkdir -p dist/files && cp -r src/files/*.* dist/files",
     "start": "tsc && node dist/index.js",
     "start-bg": "nohup tsc && node dist/index.js &",
     "lint": "eslint . --ext .ts",

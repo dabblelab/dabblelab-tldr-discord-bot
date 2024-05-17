@@ -3,7 +3,7 @@
 import { Command } from "commander";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { v4 as uuidv4 } from "uuid";
-import { publishPodcasts } from "../lib/publisher";
+import { publishPodcasts, publishWelcomeMessage } from "../lib/publisher";
 import { uploadImage } from "../lib/supabase";
 import { isValidImage, sleep } from "../lib/utils";
 import { Client, Events } from "discord.js";
@@ -85,8 +85,11 @@ async function createInvite(options: InviteOptions) {
     const podcast = await prisma.podcast.create({ data: podcastData });
     console.log("Podcast Feed URL:", podcast.feedUrl);
 
-    console.log("Publishing podcast for channel", options.channelId);
-    await publishPodcasts(client, options.channelId);
+    console.log("Publishing welcome podcast for channel", options.channelId);
+    await publishWelcomeMessage(client, options.channelId);
+
+    // console.log("Publishing podcast for channel", options.channelId);
+    // await publishPodcasts(client, options.channelId);
   } catch (error) {
     console.error("\nError creating invite.", String(error)?.split("\n")?.[0]);
   } finally {

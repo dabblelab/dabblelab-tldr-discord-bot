@@ -23,6 +23,68 @@ interface DiscordContext {
   guildId: string;
 }
 
+export async function publishWelcomeMessage(
+  client: Client,
+  publishChannelId: string | null,
+) {
+  try {
+    const channels = publishChannelId
+      ? [{ channelId: publishChannelId }]
+      : (await getSubscribedChannels()) || [];
+
+    const channelIterator = {
+      channels: channels,
+      *[Symbol.asyncIterator]() {
+        for (const channel of this.channels) {
+          yield channel?.channelId;
+        }
+      },
+    };
+    console.log("Got channels", channelIterator.channels.length);
+
+    for await (const channelId of channelIterator) {
+      const cachedChannel = client.channels.cache.get(channelId);
+
+      if (cachedChannel && cachedChannel.isTextBased()) {
+        const channel = cachedChannel as TextChannel;
+
+        // Check if Podcast is published or not
+        const channelPodcast = await prisma.podcast.findFirst({
+          where: { channelId },
+        });
+        const channelLicense = await prisma.license.findFirst({
+          where: { channelId },
+        });
+        if (!channelPodcast || !channelLicense) {
+          console.log("Records not found.");
+          continue;
+        }
+        const guildId = channelLicense.guildId;
+
+        console.log("Creating audio");
+        const summary = `Thank you for subscribing and welcome to the podcast. Every midnight we are going to publish a summary of the discussions happening on the discord server. Stay tuned for more updates.`;
+        const today = new Date(Date.now()).toLocaleDateString();
+        const title = `Summary for ${today}`;
+        const filePath = `${guildId}/${channelId}`;
+        const audioURL = await getAudioUrlFromText(`${summary}`, filePath);
+        console.log("Audio URL", audioURL);
+
+        // Update Podcast Episode
+        await createEpisode(channelId, title, summary as string, audioURL);
+        await updatePodcastXml(channelId, guildId);
+
+        console.log("Podcast published for channel", channel.name);
+        console.log("\n");
+      } else {
+        console.log("Channel not found in cache", channelId);
+      }
+    }
+  } catch (e) {
+    console.log((e as Error).message);
+    return `Could not generate summary due to error: ${(e as Error).message} `;
+  }
+}
+
 export async function publishPodcasts(
   client: Client,
   publishChannelId: string | null,
@@ -166,7 +228,8 @@ async function storeLastMessageId(channelId: string, lastMessageId: string) {
 export async function getAIResponse(discordContext: DiscordContext) {
   try {
     const summary = await getChatSummaryOfHistory(discordContext.chatHistory);
-    const title = `Summary of last ${discordContext.messageLimit} messages:`;
+    const today = new Date(Date.now()).toLocaleDateString();
+    const title = `Summary for ${today}`;
 
     try {
       console.log("Creating audio");
