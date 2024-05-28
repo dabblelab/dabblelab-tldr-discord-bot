@@ -85,12 +85,18 @@ async function createInvite(options: InviteOptions) {
     const podcast = await prisma.podcast.create({ data: podcastData });
     console.log("Podcast Feed URL:", podcast.feedUrl);
 
-    console.log("Publishing welcome podcast for channel", options.channelId);
-    await publishWelcomeMessage(client, options.channelId);
+    // console.log("Publishing welcome podcast for channel", options.channelId);
+    // await publishWelcomeMessage(client, options.channelId);
 
-    // console.log("Publishing podcast for channel", options.channelId);
-    // await publishPodcasts(client, options.channelId);
+    console.log("Publishing podcast for channel", options.channelId);
+    const useDefaultMessageIfNoHistory: boolean = false;
+    await publishPodcasts(
+      client,
+      options.channelId,
+      useDefaultMessageIfNoHistory,
+    );
   } catch (error) {
+    console.log(error);
     console.error("\nError creating invite.", String(error)?.split("\n")?.[0]);
   } finally {
     await prisma.$disconnect();

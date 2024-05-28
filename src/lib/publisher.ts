@@ -12,7 +12,7 @@ import getTextToSpeech from "../services/textToSpeech";
 import { getChatSummaryOfHistory } from "./langchain";
 
 const MESSAGE_LIMIT = 100;
-const MAX_MESSAGE_LIMIT = 500;
+const MAX_MESSAGE_LIMIT = 150;
 
 interface DiscordContext {
   messageLimit: number;
@@ -88,6 +88,7 @@ export async function publishWelcomeMessage(
 export async function publishPodcasts(
   client: Client,
   publishChannelId: string | null,
+  useDefaultMessageIfNoHistory: boolean = false,
 ) {
   const currentTime = new Date().toLocaleString();
   console.log("\nPublishing podcasts...", currentTime);
@@ -130,25 +131,30 @@ export async function publishPodcasts(
       );
       console.log("Channel", channel.name, "has", messages.size, "messages");
 
-      if (messages.size === 0) {
+      if (messages.size === 0 && useDefaultMessageIfNoHistory === false) {
         console.log("No new messages to publish");
         continue;
       }
 
-      let chatHistory = "<chat_history>\n";
-      messages.forEach((message) => {
-        if (message.author.id === client.user.id) return; // ignore bot messages (including this one
-        if (!message.content && message.attachments.size === 0) return;
+      let chatHistory = "";
+      if (messages.size === 0 && useDefaultMessageIfNoHistory === true) {
+        chatHistory = `Thank you for subscribing and welcome to the podcast. Every midnight we are going to publish a summary of the discussions happening on the discord server. Stay tuned for more updates.`;
+      } else {
+        chatHistory += "<chat_history>\n";
+        messages.forEach((message) => {
+          if (message.author.id === client.user.id) return; // ignore bot messages (including this one
+          if (!message.content && message.attachments.size === 0) return;
 
-        chatHistory += `${
-          message.author.displayName || message.author.username
-        }: ${
-          message.attachments.size > 0
-            ? message.attachments.first().proxyURL
-            : message.content
-        }\n`;
-      });
-      chatHistory += "</chat_history>";
+          chatHistory += `${
+            message.author.displayName || message.author.username
+          }: ${
+            message.attachments.size > 0
+              ? message.attachments.first().proxyURL
+              : message.content
+          }\n`;
+        });
+        chatHistory += "</chat_history>";
+      }
 
       const channelName = channel?.name || "";
       const date = new Date()
@@ -228,6 +234,7 @@ async function storeLastMessageId(channelId: string, lastMessageId: string) {
 export async function getAIResponse(discordContext: DiscordContext) {
   try {
     const summary = await getChatSummaryOfHistory(discordContext.chatHistory);
+
     const today = new Date(Date.now()).toLocaleDateString();
     const title = `Summary for ${today}`;
 
