@@ -20,7 +20,7 @@
     "@langchain/community": "^0.0.54",
     "@langchain/core": "^0.1.61",
     "@langchain/openai": "^0.0.28",
-    "@prisma/client": "^5.13.0",
+    "@prisma/client": "^5.14.0",
     "@supabase/supabase-js": "^2.41.1",
     "cron": "^3.1.7",
     "discord.js": "^14.14.1",
