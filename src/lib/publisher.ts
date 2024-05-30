@@ -1,20 +1,23 @@
+import type { Podcast } from "@prisma/client";
 import type {
   Client,
-  TextChannel,
-  Message,
   FetchMessagesOptions,
+  Message,
+  TextChannel,
 } from "discord.js";
-import { getSubscribedChannels } from "./podcast";
+import { Podcast as PodcastFeed } from "podcast";
+
+import { getTextToSpeech } from "./ai";
 import { prisma } from "./db";
-import { Podcast } from "podcast";
-import { uploadXmlFile, uploadAudio } from "./supabase";
-import getTextToSpeech from "../services/textToSpeech";
 import { getChatSummaryOfHistory } from "./langchain";
+import { createPodcastEpisode, getSubscribedPodcasts } from "./podcast";
+import { uploadAudio, uploadXmlFile } from "./supabase";
 
 const MESSAGE_LIMIT = 100;
 const MAX_MESSAGE_LIMIT = 150;
 
 interface DiscordContext {
+  podcast: Podcast;
   messageLimit: number;
   chatHistory: string;
   channelName: string;
@@ -23,113 +26,43 @@ interface DiscordContext {
   guildId: string;
 }
 
-export async function publishWelcomeMessage(
-  client: Client,
-  publishChannelId: string | null,
-) {
-  try {
-    const channels = publishChannelId
-      ? [{ channelId: publishChannelId }]
-      : (await getSubscribedChannels()) || [];
-
-    const channelIterator = {
-      channels: channels,
-      *[Symbol.asyncIterator]() {
-        for (const channel of this.channels) {
-          yield channel?.channelId;
-        }
-      },
-    };
-    console.log("Got channels", channelIterator.channels.length);
-
-    for await (const channelId of channelIterator) {
-      const cachedChannel = client.channels.cache.get(channelId);
-
-      if (cachedChannel && cachedChannel.isTextBased()) {
-        const channel = cachedChannel as TextChannel;
-
-        // Check if Podcast is published or not
-        const channelPodcast = await prisma.podcast.findFirst({
-          where: { channelId },
-        });
-        const channelLicense = await prisma.license.findFirst({
-          where: { channelId },
-        });
-        if (!channelPodcast || !channelLicense) {
-          console.log("Records not found.");
-          continue;
-        }
-        const guildId = channelLicense.guildId;
-
-        console.log("Creating audio");
-        const summary = `Thank you for subscribing and welcome to the podcast. Every midnight we are going to publish a summary of the discussions happening on the discord server. Stay tuned for more updates.`;
-        const today = new Date(Date.now()).toLocaleDateString();
-        const title = `Summary for ${today}`;
-        const filePath = `${guildId}/${channelId}`;
-        const audioURL = await getAudioUrlFromText(`${summary}`, filePath);
-        console.log("Audio URL", audioURL);
-
-        // Update Podcast Episode
-        await createEpisode(channelId, title, summary as string, audioURL);
-        await updatePodcastXml(channelId, guildId);
-
-        console.log("Podcast published for channel", channel.name);
-        console.log("\n");
-      } else {
-        console.log("Channel not found in cache", channelId);
-      }
-    }
-  } catch (e) {
-    console.log((e as Error).message);
-    return `Could not generate summary due to error: ${(e as Error).message} `;
-  }
-}
-
 export async function publishPodcasts(
   client: Client,
-  publishChannelId: string | null,
+  podcasts: Podcast[],
   useDefaultMessageIfNoHistory: boolean = false,
 ) {
   const currentTime = new Date().toLocaleString();
   console.log("\nPublishing podcasts...", currentTime);
   const messageLimit: number = MESSAGE_LIMIT;
 
-  const channels = publishChannelId
-    ? [{ channelId: publishChannelId }]
-    : (await getSubscribedChannels()) || [];
+  const allPodcasts =
+    Array.isArray(podcasts) && podcasts.length
+      ? podcasts
+      : (await getSubscribedPodcasts()) || [];
 
-  const channelIterator = {
-    channels: channels,
+  const podcastIterator = {
+    podcasts: allPodcasts,
     *[Symbol.asyncIterator]() {
-      for (const channel of this.channels) {
-        yield channel?.channelId;
+      for (const podcast of this.podcasts) {
+        yield podcast;
       }
     },
   };
-  console.log("Got channels", channelIterator.channels.length);
+  console.log("Got podcasts", podcastIterator.podcasts.length);
 
-  for await (const channelId of channelIterator) {
+  for await (const podcast of podcastIterator) {
+    const channelId = podcast.channelId;
     const cachedChannel = client.channels.cache.get(channelId);
 
     if (cachedChannel && cachedChannel.isTextBased()) {
       const channel = cachedChannel as TextChannel;
 
-      // Check if Podcast is published or not
-      const channelPodcast = await prisma.podcast.findFirst({
-        where: { channelId },
-      });
-      if (!channelPodcast) {
-        console.log(
-          "Podcast record not available. Skipping to create XML file.",
-        );
-        continue;
-      }
-
+      // FIXME: check if lastMessageId exist
       const messages: Map<string, Message> = await fetchMessagesForChannel(
         channel,
-        channelPodcast?.lastMessageId || null,
+        podcast?.lastMessageId || null,
       );
-      console.log("Channel", channel.name, "has", messages.size, "messages");
+      console.log("Channel", podcast.channel, "has", messages.size, "messages");
 
       if (messages.size === 0 && useDefaultMessageIfNoHistory === false) {
         console.log("No new messages to publish");
@@ -142,14 +75,14 @@ export async function publishPodcasts(
       } else {
         chatHistory += "<chat_history>\n";
         messages.forEach((message) => {
-          if (message.author.id === client.user.id) return; // ignore bot messages (including this one
+          if (message.author.id === client?.user?.id) return; // ignore bot messages (including this one
           if (!message.content && message.attachments.size === 0) return;
 
           chatHistory += `${
             message.author.displayName || message.author.username
           }: ${
             message.attachments.size > 0
-              ? message.attachments.first().proxyURL
+              ? message.attachments?.first()?.proxyURL
               : message.content
           }\n`;
         });
@@ -163,6 +96,7 @@ export async function publishPodcasts(
         .replace(/\..+/, "");
 
       await getAIResponse({
+        podcast: podcast,
         messageLimit: messageLimit as number,
         chatHistory,
         channelName,
@@ -185,7 +119,7 @@ async function fetchMessagesForChannel(
 ): Promise<Map<string, Message>> {
   const allMessages: Map<string, Message> = new Map();
   let hasMore = true;
-  let lastMessageId = null;
+  let lastMessageId: string | null = null;
 
   while (hasMore && allMessages.size < MAX_MESSAGE_LIMIT) {
     console.log(`Fetching ${MESSAGE_LIMIT} messages`);
@@ -205,7 +139,7 @@ async function fetchMessagesForChannel(
     console.log("Received", messages.size, "messages. Total", allMessages.size);
 
     // const messageKeys = Array.from(messages.keys());
-    lastMessageId = messages.last()?.id;
+    lastMessageId = messages.last()?.id || null;
 
     hasMore = messages.size === MESSAGE_LIMIT;
   }
@@ -215,7 +149,9 @@ async function fetchMessagesForChannel(
   }
 
   // Save the first message ID after fetching
-  const [firstMessageId] = allMessages.keys();
+  const allMessagesKeys = Array.from(allMessages.keys());
+  const firstMessageId = allMessagesKeys[0];
+  // const [firstMessageId] = allMessages.keys();
   await storeLastMessageId(channel.id, firstMessageId);
 
   // Return the messages in reverse order
@@ -244,13 +180,18 @@ export async function getAIResponse(discordContext: DiscordContext) {
       const audioURL = await getAudioUrlFromText(`${summary}`, filePath);
       console.log("Audio URL", audioURL);
       // Update Podcast Episode
-      await createEpisode(
+      await createPodcastEpisode(
+        discordContext.podcast.id,
         discordContext.channelId,
         title,
         summary as string,
         audioURL,
       );
-      await updatePodcastXml(discordContext.channelId, discordContext.guildId);
+      await updatePodcastXml(
+        discordContext.podcast.id,
+        discordContext.channelId,
+        discordContext.guildId,
+      );
     } catch (e) {
       console.log((e as Error).message || e);
       return `${summary} `;
@@ -261,72 +202,53 @@ export async function getAIResponse(discordContext: DiscordContext) {
   }
 }
 
-async function createEpisode(
-  channelId: string,
-  title: string,
-  summary: string,
-  audioUrl: string,
-) {
-  console.log("Creating episode for podcast", channelId);
-  const podcast = await prisma.podcast.findFirst({ where: { channelId } });
-
-  if (podcast?.id) {
-    await prisma.episode.create({
-      data: {
-        title,
-        summary,
-        podcastId: podcast?.id,
-        audioUrl,
-      },
-    });
-  } else {
-    console.log("Unable to create podcast episode as podcast is not present.");
-  }
-}
-
 async function getAudioUrlFromText(text: string = "", filePath: string = "") {
   const audioFileBuffer = await getTextToSpeech(text);
   if (!audioFileBuffer) throw new Error("Could not generate audio file");
 
   const timestamp = new Date().getTime();
-  const { path } = await uploadAudio({
-    bucketName: process.env.SUPABASE_BUCKET_NAME,
+  const data = await uploadAudio({
+    bucketName: process.env.SUPABASE_BUCKET_NAME as string,
     filePath: filePath,
     fileName: `summary_${timestamp}`,
     fileBuffer: audioFileBuffer,
   });
 
-  if (!path) throw new Error("Could not upload file to supabase");
+  if (!data?.path) throw new Error("Could not upload file to supabase");
 
-  const fileURL = `${process.env.SUPABASE_BUCKET_FOLDER_LOCATION}/${path}`;
+  const fileURL = `${process.env.SUPABASE_BUCKET_FOLDER_LOCATION}/${data?.path}`;
   return fileURL;
 }
 
-async function updatePodcastXml(channelId: string, guildId: string) {
+async function updatePodcastXml(
+  podcastId: string,
+  channelId: string,
+  guildId: string,
+) {
   console.log("Updating podcast XML for channel", channelId);
   const channelPath = `${guildId}/${channelId}`;
   const podcast = await prisma.podcast.findFirst({
-    where: { channelId: channelId },
-    include: { episodes: true },
+    where: { id: podcastId },
+    include: { Episode: true },
   });
-  const episodes = podcast?.episodes || [];
+  const episodes = podcast?.Episode || [];
 
   const podcastOptions = {
-    title: podcast?.title,
-    description: podcast?.description,
-    feedUrl: podcast?.feedUrl,
-    siteUrl: podcast?.siteUrl,
+    title: podcast?.title as string,
+    description: podcast?.description as string,
+    feedUrl: podcast?.feedUrl as string,
+    siteUrl: podcast?.siteUrl as string,
     language: "en",
-    imageUrl: podcast?.imageUrl,
-    author: podcast?.author,
+    imageUrl: podcast?.imageUrl as string,
+    author: podcast?.author as string,
     // itunesCategory: [{ text: "Education" }], // FIXME: Need real data
-    ituneImage: podcast?.imageUrl,
+    ituneImage: podcast?.imageUrl as string,
     customelements: [
       { "podcast:locked": "no" },
       // { "podcast:guid": "some-guid" },
     ],
   };
-  const feed = new Podcast(podcastOptions);
+  const feed = new PodcastFeed(podcastOptions);
   episodes.forEach((file) => {
     feed.addItem({
       title: file.title,
@@ -345,7 +267,7 @@ async function updatePodcastXml(channelId: string, guildId: string) {
     xml,
     channelPath,
     "feed",
-    process.env.SUPABASE_BUCKET_NAME,
+    process.env.SUPABASE_BUCKET_NAME as string,
   );
 
   return podcast;
