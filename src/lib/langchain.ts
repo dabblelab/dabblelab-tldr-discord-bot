@@ -1,7 +1,11 @@
 import { PromptTemplate } from "@langchain/core/prompts";
 import { ChatOpenAI } from "@langchain/openai";
 
-export async function getChatSummaryOfHistory(chatHistory: string) {
+export async function getChatSummaryOfHistory(
+  chatHistory: string,
+  channelName: string,
+  summaryDate: string,
+) {
   const model = new ChatOpenAI({
     modelName: "gpt-4o",
     temperature: 0.5,
@@ -19,6 +23,7 @@ export async function getChatSummaryOfHistory(chatHistory: string) {
     input: chatHistory,
   });
 
-  const summary = result.content;
+  const summaryPrefix = `This is a summary for ${channelName} on ${summaryDate}. `;
+  const summary = summaryPrefix + result.content;
   return summary;
 }

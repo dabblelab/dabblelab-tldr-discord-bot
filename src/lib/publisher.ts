@@ -12,6 +12,7 @@ import { prisma } from "./db";
 import { getChatSummaryOfHistory } from "./langchain";
 import { createPodcastEpisode, getSubscribedPodcasts } from "./podcast";
 import { uploadAudio, uploadXmlFile } from "./supabase";
+import { formatDateSummary } from "./utils";
 
 const MESSAGE_LIMIT = 100;
 const MAX_MESSAGE_LIMIT = 150;
@@ -51,17 +52,31 @@ export async function publishPodcasts(
   console.log("Got podcasts", podcastIterator.podcasts.length);
 
   for await (const podcast of podcastIterator) {
+    const podcastId = podcast.id;
     const channelId = podcast.channelId;
+    console.log(
+      "\n=== Starting with Podcast",
+      podcastId,
+      "and Channel",
+      channelId,
+    );
     const cachedChannel = client.channels.cache.get(channelId);
 
     if (cachedChannel && cachedChannel.isTextBased()) {
       const channel = cachedChannel as TextChannel;
+      console.log("Channel found in cache", channel.id, channel.name);
 
       // FIXME: check if lastMessageId exist
-      const messages: Map<string, Message> = await fetchMessagesForChannel(
-        channel,
-        podcast?.lastMessageId || null,
-      );
+      let messages: Map<string, Message> = new Map();
+      try {
+        messages = await fetchMessagesForChannel(
+          channel,
+          podcast?.lastMessageId || null,
+        );
+      } catch (e) {
+        console.log((e as Error).message);
+        continue;
+      }
       console.log("Channel", podcast.channel, "has", messages.size, "messages");
 
       if (messages.size === 0 && useDefaultMessageIfNoHistory === false) {
@@ -169,10 +184,14 @@ async function storeLastMessageId(channelId: string, lastMessageId: string) {
 
 export async function getAIResponse(discordContext: DiscordContext) {
   try {
-    const summary = await getChatSummaryOfHistory(discordContext.chatHistory);
+    const today = formatDateSummary(new Date());
+    const summary = await getChatSummaryOfHistory(
+      discordContext.chatHistory,
+      discordContext?.podcast?.title as string,
+      today,
+    );
 
-    const today = new Date(Date.now()).toLocaleDateString();
-    const title = `Summary for ${today}`;
+    const title = `Summary for ${discordContext?.podcast?.title} on ${today}`;
 
     try {
       console.log("Creating audio");

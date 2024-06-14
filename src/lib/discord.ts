@@ -1,5 +1,5 @@
 import { Client } from "discord.js";
-import { commands } from "../commands";
+// import { commands } from "../commands";
 // import { deployCommands } from "../utils/deploy-commands";
 import { config } from "../utils/config";
 import { CronJob } from "cron";
@@ -41,6 +41,7 @@ export async function initializeDiscordBot() {
   const dailyMidnight = "0 0 * * *";
   // const everyMinute = "0 */1 * * * *";
   const scheduledMessageWednesday = new CronJob(
+    // everyMinute,
     dailyMidnight,
     publishPodcastWithClient,
   );

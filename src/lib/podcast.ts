@@ -245,7 +245,7 @@ export async function getSubscribedPodcasts() {
     const podcasts = await prisma.podcast.findMany({
       orderBy: { createdAt: "desc" },
       // FIXME: Only for development purpose
-      where: {userId: "clwkl6u7y0000ofp2pboxeqfg"}
+      // where: {userId: "clwkl6u7y0000ofp2pboxeqfg"}
     });
 
     return podcasts;
